@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "Item": {
+      "title": "Marketplace Item",
+      "description": "An item listed on a marketplace to track its price.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who owns this item."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the item."
+        },
+        "marketplaceUrl": {
+          "type": "string",
+          "description": "The URL of the item on the marketplace."
+        },
+        "offlinePrice": {
+          "type": "number",
+          "description": "The manual or reference price for the item."
+        },
+        "onlinePrice": {
+          "type": "number",
+          "description": "The currently observed price on the marketplace."
+        },
+        "lastCheckedAt": {
+          "type": "timestamp",
+          "description": "When the price was last checked."
+        },
+        "createdAt": {
+          "type": "timestamp",
+          "description": "When the item was added."
+        },
+        "searchResults": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "price": { "type": "number" },
+              "url": { "type": "string" },
+              "imageUrl": { "type": "string" },
+              "similarityScore": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["userId", "name", "offlinePrice", "onlinePrice", "createdAt"]
+    },
+    "AiLog": {
+      "title": "AI API Log",
+      "description": "A record of an AI API call.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The UID of the user who made the call."
+        },
+        "timestamp": {
+          "type": "timestamp",
+          "description": "When the call was made."
+        },
+        "model": {
+          "type": "string",
+          "description": "The name of the model used."
+        },
+        "prompt": {
+          "type": "string",
+          "description": "The prompt sent to the model."
+        },
+        "response": {
+          "type": "string",
+          "description": "The response received from the model."
+        },
+        "usage": {
+          "type": "object",
+          "properties": {
+            "promptTokenCount": { "type": "number" },
+            "candidatesTokenCount": { "type": "number" },
+            "totalTokenCount": { "type": "number" }
+          }
+        },
+        "type": {
+          "type": "string",
+          "description": "The type of operation (e.g., 'price_check', 'shop_confirm')."
+        }
+      },
+      "required": ["userId", "timestamp", "model", "type"]
+    }
+    "UserSettings": {
+      "title": "User Settings",
+      "description": "User-specific settings such as shop URLs.",
+      "type": "object",
+      "properties": {
+        "tokopediaUrl": { "type": "string" },
+        "tokopediaName": { "type": "string" },
+        "shopeeUrl": { "type": "string" },
+        "shopeeName": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/items/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/Item"
+      },
+      "description": "Stores the marketplace items."
+    },
+    "/aiLogs/{logId}": {
+      "schema": {
+        "$ref": "#/entities/AiLog"
+      },
+      "description": "Stores logs of AI API calls."
+    },
+    "/userSettings/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserSettings"
+      },
+      "description": "Stores user settings."
+    }
+  }
+}

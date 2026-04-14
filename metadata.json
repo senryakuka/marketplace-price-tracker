@@ -1,0 +1,5 @@
+{
+  "name": "Marketplace Price Tracker",
+  "description": "Track offline prices against online listings and automatically sync updates to TikTok Shop and Shopee.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,132 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: items
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required) - The UID of the user who owns this item.
+    //   - name: string (required) - The name of the item.
+    //   - marketplaceUrl: string (optional) - The URL of the item on the marketplace.
+    //   - offlinePrice: number (required) - The manual or reference price for the item.
+    //   - onlinePrice: number (required) - The currently observed price on the marketplace.
+    //   - lastCheckedAt: timestamp (optional) - When the price was last checked.
+    //   - createdAt: timestamp (required) - When the item was added.
+    //   - searchResults: list (optional) - Top 3 search results with similarity scores.
+    //
+    // ===============================================================
+
+    // Collection: aiLogs
+    // Document ID: auto-generated
+    // Fields:
+    //   - userId: string (required) - The UID of the user who made the call.
+    //   - timestamp: timestamp (required) - When the call was made.
+    //   - model: string (required) - The name of the model used.
+    //   - prompt: string (optional) - The prompt sent to the model.
+    //   - response: string (optional) - The response received from the model.
+    //   - usage: map (optional) - Token usage details.
+    //   - type: string (required) - The type of operation.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+    
+    function uidUnchanged() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('userId' in request.resource.data) || request.resource.data.userId == resource.data.userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidUrl(url) {
+      return url is string && url.size() > 0 && url.size() < 2000;
+    }
+
+    function isValidSearchResult(result) {
+      return result is map &&
+             result.title is string && result.title.size() < 500 &&
+             result.price is number &&
+             result.url is string && isValidUrl(result.url) &&
+             (!('imageUrl' in result) || result.imageUrl == null || result.imageUrl == "" || result.imageUrl is string) &&
+             (!('similarityScore' in result) || result.similarityScore == null || result.similarityScore is number);
+    }
+
+    // Domain Validators
+    function isValidItem(data) {
+      return hasRequiredFields(['userId', 'name', 'offlinePrice']) &&
+             data.userId is string &&
+             data.name is string &&
+             data.offlinePrice is number &&
+             (!('onlinePrice' in data) || data.onlinePrice is number) &&
+             (!('tokopediaPrice' in data) || data.tokopediaPrice is number) &&
+             (!('shopeePrice' in data) || data.shopeePrice is number);
+    }
+
+    function isValidAiLog(data) {
+      let allowedFields = ['userId', 'timestamp', 'model', 'prompt', 'response', 'usage', 'type'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             hasRequiredFields(['userId', 'timestamp', 'model', 'type']) &&
+             data.userId is string && data.userId == request.auth.uid &&
+             data.timestamp is timestamp &&
+             data.model is string &&
+             data.type is string;
+    }
+
+    function isValidUserSettings(data) {
+      let allowedFields = ['tokopediaUrl', 'tokopediaName', 'shopeeUrl', 'shopeeName'];
+      return hasOnlyAllowedFields(allowedFields) &&
+             (!('tokopediaUrl' in data) || data.tokopediaUrl is string) &&
+             (!('tokopediaName' in data) || data.tokopediaName is string) &&
+             (!('shopeeUrl' in data) || data.shopeeUrl is string) &&
+             (!('shopeeName' in data) || data.shopeeName is string);
+    }
+
+    match /items/{itemId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+      allow create: if isAuthenticated() && isValidItem(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid);
+    }
+
+    match /aiLogs/{logId} {
+      allow read: if isDocOwner();
+      allow create: if isAuthenticated() && isValidAiLog(request.resource.data);
+      allow update: if false;
+      allow delete: if isDocOwner();
+    }
+
+    match /userSettings/{userId} {
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      allow create: if isAuthenticated() && request.auth.uid == userId && isValidUserSettings(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == userId && isValidUserSettings(request.resource.data);
+      allow delete: if false;
+    }
+  }
+}
